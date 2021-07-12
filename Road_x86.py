@@ -3,17 +3,22 @@ import idautils
 import idc as idc
 from idaapi import *
 import time
+import sys
 
+sys.setrecursionlimit(1000000)
 # idc.Wait()
 start = time.clock()
 start1 = time.time()
-folder=str(idc.ARGV[1])
-folder=folder[33:]
+#folder=str(idc.ARGV[1])
+#folder=folder[33:]
 #folder = 'R6400-usr+sbin+httpd'#'DIR-868-email'  # 'TP_Link-cwmp2'
 #folder = 'httping'  # 'TP_Link-cwmp2'
-
+folder = "/picolisp"
 # Find all functions' name and address
 function_name = {}
+if not os.path.exists("C:/Users/kkzzz/Desktop/ida_analysis_result" + folder):
+    os.mkdir("C:/Users/kkzzz/Desktop/ida_analysis_result" + folder)
+
 for func in idautils.Functions():
     function_name[get_func_name(func)] = func
 
@@ -231,7 +236,7 @@ for item in function_Mark:
     print(item)
 
 print('\n*****************************************function address')
-with open("/Users/tomrush/Desktop/result/" + folder + "/fun_address.txt", "w") as f:
+with open("C:/Users/kkzzz/Desktop/ida_analysis_result" + folder + "/fun_address.txt", "w") as f:
     for i in range(len(function_Mark)):
         if function_Mark[i] not in SSL_function:
             func = idaapi.get_func(idc.LocByName(function_Mark[i]))
@@ -268,7 +273,7 @@ for i in range(n):
     for j in range(n):
         matrix_t[j][i] = matrix[i][j]
 
-print('\n***************************************No circle')
+print('\n***************************************break the loops')
 
 
 def Dfs_visit(matrix, node, visit, father, function_Mark):
@@ -334,13 +339,13 @@ while mark == 1:
         mark = 0
 
 print('\n**************************************save file')
-with open("/Users/tomrush/Desktop/result/" + folder + "/fun_name.txt", "w") as f:
+with open("C:/Users/kkzzz/Desktop/ida_analysis_result" + folder + "/fun_name.txt", "w") as f:
     for i in range(len(function_Mark)):
         f.write(function_Mark[i])
         f.write('\n')
 f.close()
 
-with open("/Users/tomrush/Desktop/result/" + folder + "/martix.txt", "w") as f:
+with open("C:/Users/kkzzz/Desktop/ida_analysis_result" + folder + "/martix.txt", "w") as f:
     for i in range(len(matrix)):
         for j in range(len(matrix)):
             f.write(str(matrix[i][j]))
@@ -544,7 +549,9 @@ for nnn in range(len(Func_name)):
     # store
     All_Road[nnn] = Func_road
     # store in file
-    output = open('/Users/tomrush/Desktop/result/' + folder + '/CFG/' + name + '_block_address''.txt', 'w+')
+    if not os.path.exists("C:/Users/kkzzz/Desktop/ida_analysis_result" + folder + "/CFG/"):
+        os.mkdir("C:/Users/kkzzz/Desktop/ida_analysis_result" + folder + "/CFG/")
+    output = open('C:/Users/kkzzz/Desktop/ida_analysis_result' + folder + '/CFG/' + name + '_block_address''.txt', 'w+')
     for i in range(len(block_address)):
         for j in range(len(block_address[i])):
             output.write(str(block_address[i][j]))
@@ -552,7 +559,7 @@ for nnn in range(len(Func_name)):
         output.write('\n')
     output.close()
 
-    output = open('/Users/tomrush/Desktop/result/' + folder + '/CFG/' + name + '_block_information''.txt', 'w+')
+    output = open('C:/Users/kkzzz/Desktop/ida_analysis_result' + folder + '/CFG/' + name + '_block_information''.txt', 'w+')
     for i in range(len(block_information)):
         for j in range(len(block_information[i])):
             output.write(block_information[i][j])
@@ -560,7 +567,7 @@ for nnn in range(len(Func_name)):
         output.write('\n')
     output.close()
 
-    output = open('/Users/tomrush/Desktop/result/' + folder + '/CFG/' + name + '_block_matrix''.txt', 'w+')
+    output = open('C:/Users/kkzzz/Desktop/ida_analysis_result' + folder + '/CFG/' + name + '_block_matrix''.txt', 'w+')
     for i in range(len(block_matrix)):
         for j in range(len(block_matrix)):
             output.write(str(block_matrix[i][j]))
@@ -568,7 +575,7 @@ for nnn in range(len(Func_name)):
         output.write('\n')
     output.close()
 
-    output = open('/Users/tomrush/Desktop/result/' + folder + '/CFG/' + name + '_CFG_Road''.txt', 'w+')
+    output = open('C:/Users/kkzzz/Desktop/ida_analysis_result' + folder + '/CFG/' + name + '_CFG_Road''.txt', 'w+')
     for i in range(len(Func_road)):
         for j in range(len(Func_road[i])):
             output.write(Func_road[i][j])
@@ -712,6 +719,7 @@ while change_mark == 0:
             all_road_sum = 0
             for j in range(len(All_Road[i])):
                 one_road_sum = 0
+                address_count = 0
                 for k in range(len(All_Road[i][j])):
                     if '0x' in All_Road[i][j][k]:
                         address_count=address_count+1
@@ -733,7 +741,9 @@ while change_mark == 0:
                 for k in range(len(Final_roads)):
                     All_Road[i].append(Final_roads[k])
                 # store in file
-                output = open('/Users/tomrush/Desktop/result/' + folder + '/ROAD_func_middle/' + Func_name[i] + '.txt',
+                if not os.path.exists("C:/Users/kkzzz/Desktop/ida_analysis_result" + folder + "/ROAD_func_middle/"):
+                    os.mkdir("C:/Users/kkzzz/Desktop/ida_analysis_result" + folder + "/ROAD_func_middle/")
+                output = open('C:/Users/kkzzz/Desktop/ida_analysis_result' + folder + '/ROAD_func_middle/' + Func_name[i] + '.txt',
                               'w+')
                 for j in range(len(All_Road[i])):
                     for k in range(len(All_Road[i][j])):
@@ -749,6 +759,7 @@ while change_mark == 0:
         change_mark = 1
 
 print('\n******************************************Middle result')
+print(Func_name)
 if "_start" in Func_name:
     c = Func_name.index("_start")
 else:
@@ -757,7 +768,7 @@ else:
 for i in range(len(All_Road[c])):
     print i, All_Road[c][i]
 # store middle result
-output = open('/Users/tomrush/Desktop/result/' + folder + '/Road_middle.txt', 'w+')
+output = open('C:/Users/kkzzz/Desktop/ida_analysis_result' + folder + '/Road_middle.txt', 'w+')
 for j in range(len(All_Road[c])):
     for k in range(len(All_Road[c][j])):
         output.write(All_Road[c][j][k])
@@ -784,7 +795,7 @@ for i in range(len(All_Road[c])):
     print i, All_Road[c][i]
 
 # store final result
-output = open('/Users/tomrush/Desktop/result/' + folder + '/Road_final.txt', 'w+')
+output = open('C:/Users/kkzzz/Desktop/ida_analysis_result' + folder + '/Road_final.txt', 'w+')
 for j in range(len(All_Road[c])):
     for k in range(len(All_Road[c][j])):
         output.write(All_Road[c][j][k])
@@ -855,12 +866,12 @@ for i in range(len(All_Road[c])):
             else:
                 Verify[i] = 9#correct
         else:
-            output = open('/Users/tomrush/Desktop/result/RD_need.txt', 'a') 
+            output = open('C:/Users/kkzzz/Desktop/ida_analysis_resultRD_need.txt', 'a') 
             output.write(folder)
             output.write('\n')
             output.close()
             
-output = open('/Users/tomrush/Desktop/result/' + folder + '/Report_verify.txt', 'w+')
+output = open('C:/Users/kkzzz/Desktop/ida_analysis_result' + folder + '/Report_verify.txt', 'w+')
 output.write(str(len(Verify)))
 output.write('\n')
 output.write("Correct"+str(Verify.count(1))+" Roads don't use SSL_CTX_set_verify. but use SSL_get_peer_certificate & SSL_get_verify_result")
@@ -956,7 +967,7 @@ output.write('\n')
 output.close()   
 
 
-output = open('/Users/tomrush/Desktop/result/' + folder + '/Report_method.txt', 'w+')
+output = open('C:/Users/kkzzz/Desktop/ida_analysis_result' + folder + '/Report_method.txt', 'w+')
 output.write(str(len(Method)))
 output.write('\n')
 output.write(str(Method.count(1))+' Roads use TLSv1_(client_)method')
@@ -1026,7 +1037,7 @@ print('Running time: %s Seconds' % (end - start))
 end1 = time.time()
 print('Running time: %s Seconds' % (end1 - start1))
 
-with open("/Users/tomrush/Desktop/result/" + folder + "/time.txt", "w") as f:
+with open("C:/Users/kkzzz/Desktop/ida_analysis_result" + folder + "/time.txt", "w") as f:
     f.write(str(end - start))
     f.write('\n')
     f.write(str(end1 - start1))
