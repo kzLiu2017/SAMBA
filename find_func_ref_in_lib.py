@@ -135,13 +135,11 @@ SSL_function = {
     '_SSL_load_error_strings': 0,
 
 }
-
-log_file = open("log.txt", "w")
-
-txt_file = open("../func_to_func_list.txt", "r")
+idaapi.autoWait()
+txt_file = open("../../func_to_func_list.txt", "r")
 func_to_func_str = txt_file.readlines()
 txt_file.close()
-txt_file = open("../file_name.txt", "r")
+txt_file = open("../../file_name.txt", "r")
 read_lines = txt_file.readlines()
 txt_file.close()
 filename = read_lines[0][ : len(read_lines[0]) - 2]
@@ -170,7 +168,6 @@ export_func_list = literal_eval(export_func_list)
 import_func_list_tmp = []
 import_func_list = []
 
-log_file.write("before match_import_and_export_func\n")
 
 def match_import_and_export_func(func_addr):
     print(func_addr)
@@ -193,23 +190,25 @@ def match_import_and_export_func(func_addr):
         #     func_list.append({import_func_name : func_name})
 # print("import func list", import_func_list)
 
-log_file.write("before find_func_ref_to_ssl_func\n")
 
 bool_SSL_function = False
+addr_list = []
 def find_func_ref_to_ssl_func(func_addr):
     global bool_SSL_function
     ssl_func_name = GetFunctionName(func_addr)
     # print(ssl_func_name, hex(func_addr))
 
-    # print(ssl_func_name)
+    print(ssl_func_name)
     for addr in XrefsFrom(func_addr, 0):
-        # print("addr.to  ", hex(addr.to), "func_addr   ", hex(func_addr))
-        # print("GetFunctionName(addr.to) ", GetFunctionName(addr.to), "ssl_func_name  ", ssl_func_name, SSL_function.has_key(GetFunctionName(addr.to)))
-        if GetFunctionName(addr.to) == ssl_func_name:
-            find_func_ref_to_ssl_func(addr.to)
+        if addr_list.count(addr.to) == 0:
+            addr_list.append(addr.to)
+            print("addr.to  ", hex(addr.to), "func_addr   ", hex(func_addr))
+            # print("GetFunctionName(addr.to) ", GetFunctionName(addr.to), "ssl_func_name  ", ssl_func_name, SSL_function.has_key(GetFunctionName(addr.to)))
+            if GetFunctionName(addr.to) == ssl_func_name:
+                find_func_ref_to_ssl_func(addr.to)
 
-        elif SSL_function.has_key(GetFunctionName(addr.to)) == True:
-            bool_SSL_function = True
+            elif SSL_function.has_key(GetFunctionName(addr.to)) == True:
+                bool_SSL_function = True
 
 index = 0
 
@@ -237,20 +236,21 @@ if is_last_lib == True:
     for index in range(0, len(func_to_func_list)):
         if func_to_func_list[index][2] == filename:
             # print("index", index)
-            # print("func_to_func_list", func_to_func_list[index][3], hex(idc.LocByName(func_to_func_list[index][3][1:])))
+            print("func_to_func_list", func_to_func_list[index][3], hex(idc.LocByName(func_to_func_list[index][3][1:])))
             find_func_ref_to_ssl_func(idc.LocByName(func_to_func_list[index][3][1:]))
+            addr_list = []
             # print(bool_SSL_function)
             if bool_SSL_function == True:
                 func_to_func_list[index][4] = "SSL"
                 bool_SSL_function = False
 
-print(func_to_func_list)
+# print(func_to_func_list)
 
-# txt_file = open("../func_to_func_list.txt", "w")
-# txt_file.write(str(func_to_func_list))
-# txt_file.close()
+txt_file = open("../../func_to_func_list.txt", "w")
+txt_file.write(str(func_to_func_list))
+txt_file.close()
 
-# idc.Exit(0)
+idc.Exit(0)
 # txt_file.close()
 
 # file_func.write(file_func)

@@ -25,39 +25,54 @@ func_to_func_list_in_one_file = [] # 函数6的返回值
 # 函数7:去除所有和ssl无关的库调用，参数是func_to_func_list, 首先遍历list找到所有第五个参数是sslAPI的list，然后把带分析的函数名添加到list中
 
 #lib_list存储的是当前文件调用的所有lib
-file_name = "test"
+file_name = "genie_handler"
 file_path = os.getcwd()
 all_lib_list.append(file_name)
 return_list = []
+func_to_func_list_tmp = []
 
-def remove_no_ssl(func_list):
-    if len(func_list) > 0:
-        if func_list[0] == 1:
-            func_list = []
-            for func_to_func in func_to_func_list:
-                if func_to_func[4] == "TLSv1_2_client_method":
-                    func_list.append([func_to_func[0], func_to_func[1]])
-                    return_list.append(func_to_func)
-        if len(func_list) > 0:
-            new_func_list = []
-            for func in func_list:
-                for func_to_func in func_to_func_list:
-                    if func_to_func[1] == []:
-                        return_list.append(func_to_func)
-                    elif func_to_func[2] == func[0] and func_to_func[3] == func[1]:
-                        return_list.append(func_to_func)
-                        new_func_list.append([func_to_func[0], func_to_func[1]])
-            remove_no_ssl(new_func_list)
-    return return_list
+def remove_no_ssl():
+    func_to_func_list_tmp = func_to_func_list
+    break_loop = False
+    while break_loop == False:
+        break_loop = True
+        index = 0
+        for index in range(0, len(func_to_func_list_tmp)):
+            if func_to_func_list_tmp[index][4] == "SSL":
+                inter_index = 0
+                for inter_index in range(0, len(func_to_func_list_tmp)):
+                    if func_to_func_list_tmp[inter_index][2] == func_to_func_list_tmp[index][0] and func_to_func_list_tmp[inter_index][4] == "":
+                        func_to_func_list_tmp[inter_index][4] = "SSL"
+                        break_loop = False
+
+
+    # if len(func_list) > 0:
+    #     if func_list[0] == 1:
+    #         func_list = []
+    #         for func_to_func in func_to_func_list:
+    #             if func_to_func[4] == "TLSv1_2_client_method":
+    #                 func_list.append([func_to_func[0], func_to_func[1]])
+    #                 return_list.append(func_to_func)
+    #     if len(func_list) > 0:
+    #         new_func_list = []
+    #         for func in func_list:
+    #             for func_to_func in func_to_func_list:
+    #                 if func_to_func[1] == []:
+    #                     return_list.append(func_to_func)
+    #                 elif func_to_func[2] == func[0] and func_to_func[3] == func[1]:
+    #                     return_list.append(func_to_func)
+    #                     new_func_list.append([func_to_func[0], func_to_func[1]])
+    #         remove_no_ssl(new_func_list)
+    # return return_list
 
 def match_import_and_export_func_in_one_file():
     # 通过IDA分析确定
     # return [['test', '', 'libtest.so', 'no_ssl_api', ''], ['test', '', 'libtest_1.so', 'no_ssl_api_1', ''], ['libtest.so', 'no_ssl_api', 'libtest_so.so', 'ssl_api', ''], ['libtest_1.so', 'no_ssl_api_1', 'libtest_so_1.so', 'ssl_api_1', 'TLSv1_2_client_method']]
-    ida_script = "/Users/liukaizheng/Desktop/test_cross_file/SSL_API_Misuse_Detection-main/find_func_ref_in_lib.py"
+    ida_script = "/Users/liukaizheng/Downloads/karonte_dataset/NETGEAR/analyzed/R6400v2-V1.0.2.46_1.0.36/fw/_R6400v2-V1.0.2.46_1.0.36.chk.extracted/squashfs-root/find_func_ref_in_lib.py"
 
     for file in all_lib_list:
         print(file)
-        if file == "test":
+        if file == "genie_handler":
             continue
         txt_file = open("file_name.txt", "w")
         txt_file.write(file)
@@ -69,7 +84,7 @@ def match_import_and_export_func_in_one_file():
         file_name = os.popen("find ./ -name " + file).read()
         path = os.getcwd()
         file_name = file_name[2:file_name.rfind("\n")]
-        command = "/Applications/IDA\\ Pro\\ 7.0/ida.app/Contents/MacOS/ida64 -S\"" + ida_script + " /" + file + "\" " + path + file_name
+        command = "/Applications/IDA\\ Pro\\ 7.0/ida.app/Contents/MacOS/ida -A -S\"" + ida_script + " /" + file + "\" " + path + file_name
         os.system(command)
 
     # if file == "test_files/test":
@@ -98,18 +113,19 @@ def match_import_func_and_export_func_between_different_libs(import_file, export
 
 def find_export_func(file_name, path):
     lib_name_full = os.popen("find ./ -name " + file_name).read()
-    sys_table = os.popen("objdump -tT " + lib_name_full).read()
+    sys_table = os.popen("readelf --use-dynamic -a " + os.path.join(path,lib_name_full)).read()
     export_func_list_tmp = []
-    while sys_table.find("\n") >= 0:
+    sys_table = sys_table[sys_table.find("Symbol table for image:") : ]
+    while sys_table.find("FUNC ") >= 0:
+        sys_table = sys_table[sys_table.find("FUNC ") : ]
         line = sys_table[ : sys_table.find("\n")]
         sys_table = sys_table[sys_table.find("\n") + 1 : ]
-        if line.find(" g ") >= 0:
-            if line.find(" Base ") >= 0:
-                if line.find(" .text") >= 0:
+        if line.find("FUNC ") >= 0:
+            if line.find(" UND ") < 0:
                     # export function in library
-                    export_func = line[line.rfind(" ") + 1: ]
-                    if import_func_list.count(export_func) > 0:
-                        export_func_list_tmp.append(export_func)
+                export_func = line[line.rfind(" ") + 1: ]
+                if import_func_list.count(export_func) > 0:
+                    export_func_list_tmp.append(export_func)
     return export_func_list_tmp
 
 def find_lib_and_import_funcs(file_name, path):
@@ -131,20 +147,30 @@ def find_lib_and_import_funcs(file_name, path):
             lib_name_start = lib_section.find("[")
             # print(lib_name)
             # delete standard libraries
-            if lib_name.find("libssl.so") < 0 and lib_name.find("libcrypto.so") < 0 and lib_name.find("libz.so") and lib_name.find("libgcc") and lib_name.find("libc.so") and lib_name.find("libm.so"):
+            if lib_name.find("libcrypto.so") < 0 and lib_name.find("libz.so") and lib_name.find("libgcc") and lib_name.find("libc.so") and lib_name.find("libm.so"):
                 lib_list.append(lib_name)
         # store the imported functions in the elf header
         import_func_list = []
-        sys_table = os.popen("objdump -tT " + os.path.join(path, file_name)).read()
-        while sys_table.find("\n") >= 0:
+        sys_table = os.popen("readelf -a " + os.path.join(path, file_name)).read()
+        sys_table = sys_table[sys_table.rfind("Symbol table \'.dynsym\'") : ]
+        sys_table = sys_table[sys_table.find("FUNC ") : ]
+        while sys_table.find("FUNC ") >= 0:
             line = sys_table[:sys_table.find("\n")]
             sys_table = sys_table[sys_table.find("\n") + 1:]
-            # if line.find(" D ") >= 0:
-            #     if line.find(" w ") >= 0:
-            if line.find("*UND*") >= 0:
-                # print(line)
+            if line.find("UND ") >= 0:
                 import_func = line[line.rfind(" ") + 1 : ]
                 import_func_list.append(import_func)
+
+        # sys_table = os.popen("objdump -tT " + os.path.join(path, file_name)).read()
+        # while sys_table.find("\n") >= 0:
+        #     line = sys_table[:sys_table.find("\n")]
+        #     sys_table = sys_table[sys_table.find("\n") + 1:]
+        #     # if line.find(" D ") >= 0:
+        #     #     if line.find(" w ") >= 0:
+        #     if line.find("*UND*") >= 0:
+        #         # print(line)
+        #         import_func = line[line.rfind(" ") + 1 : ]
+        #         import_func_list.append(import_func)
     import_func_list = list(set(import_func_list))
     return import_func_list, lib_list
 
@@ -208,9 +234,14 @@ txt_file = open("func_to_func_list.txt", "w")
 txt_file.write(str(func_to_func_list))
 txt_file.close()
 
-func_to_func_list = match_import_and_export_func_in_one_file()
+match_import_and_export_func_in_one_file()
+txt_file = open("func_to_func_list.txt", "r")
+func_to_func_str = txt_file.readlines()
+txt_file.close()
 
-func_to_func_list = remove_no_ssl([1])
+# func_to_func_list = 
+
+func_to_func_list = remove_no_ssl()
 print(end)
 # def main():
 #     file_name = "test"
