@@ -1,2 +1,0 @@
-libtest_1.so
-['no_ssl_api_1', 'no_ssl_api_new_1']
