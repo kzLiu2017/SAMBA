@@ -14,6 +14,8 @@ start = time.process_time()
 start1 = time.time()
 file_path = 'E:/binary/gnutls/'
 folder = get_root_filename()
+print(folder)
+print(file_path + folder)
 machine = ""
 info = idaapi.get_inf_structure()
 
@@ -180,6 +182,12 @@ print('**********************************have these functions')
 for key in function_name:
     if key in necessary_SSL_function:
         necessary_SSL_function[key] = 1
+        print(key)
+
+# print('\n***************************do not have these functions')
+# for key in necessary_SSL_function:
+#     if necessary_SSL_function.get(key) == 0:
+#         print(key)
 
 print('\n******************************************fliter_initial')
 # for all functions (is or include) functions in SSL_function,mark it.--->mark_size=1
@@ -190,6 +198,7 @@ for func in idautils.Functions():
 for key in function_mark:
     if key in SSL_function:
         function_mark[key] = 1
+        # print(key)
 
 print('\n******************************************fliter white ')
 # filter the function (whose mark_size=0),keep the function (whose mark_size=0).then
@@ -226,6 +235,7 @@ for item in function_mark:
 X86_SSL_func_list = []
 
 if machine == "X86-64":
+    print(necessary_SSL_function)
     for key in necessary_SSL_function.keys():
         if necessary_SSL_function[key] == 1:
             for addr in XrefsTo(idc.get_name_ea_simple(key), 0):
@@ -235,6 +245,7 @@ if machine == "X86-64":
 output = open('E:/result/gnutls/' + folder + '/Report_verify.txt', 'w+')
 
 addr_list = []
+addr_list_verify = []
 
 visited_block = []
 jmp_list = ["bnze", "beqz", "test"]
@@ -242,83 +253,239 @@ jump = {'bnez': 1, 'beqz': 0, 'jz': 1, 'jnz': 0, 'js': 0, 'jns': 0}
 propagation_list = ["move"]
 flag = 0
 
-jmp_list_arm = ["CMP"]
+jmp_list_arm_0 = ["CMP"]
+jmp_list_arm_1 = ["SUBS"]
+# beq : cmp fail jump, bne opposite
 jump_arm = {'BEQ': 0, 'BNE': 1}
 propagation_list_arm = ["MOV", "MOVNE", "STR", "LDR"]
+propagation_list_x86 = ["mov"]
 
 def traver_block_arm(cur_block, block_start, block_end, spoting):
+    global flag
+    flag = 0
     current_addr = block_start
     if block_start in visited_block:
         return
     visited_block.append(block_start)
     while current_addr < block_end:
-        if idc.print_insn_mnem(current_addr) == "BL":
-            call_func_name = idc.print_operand(current_addr, 0)
-            if (call_func_name in SSL_function) & ("SSL_get_verify_result" not in call_func_name):
-                global flag
-                flag = 1
-                return
-        elif (idc.print_insn_mnem(current_addr) in propagation_list_arm) & (idc.print_operand(current_addr, 1) in spoting):
-            spoting.append(idc.print_operand(addr_down, 0))
-        elif (idc.print_insn_mnem(current_addr) in propagation_list_arm) & (idc.print_operand(current_addr, 0) in spoting) & (idc.print_operand(current_addr, 1) not in spoting):
-            spoting.remove(idc.print_operand(addr_down, 0))
-        elif (idc.print_insn_mnem(current_addr) in jmp_list_arm):
-            spoting_new = spoting
-            if idc.print_operand(current_addr, 0) not in spoting:
+        print(hex(current_addr))
+        if len(spoting) == 0:
+            if (idc.print_insn_mnem(current_addr) == "BL") and ("SSL_get_peer_certificate" in idc.print_operand(current_addr, 0)):
+                spoting = ['R0']
+            elif idc.print_insn_mnem(current_addr) in jump_arm.keys():
                 for succ in cur_block.succs():
-                    traver_block_arm(succ, succ.start_ea, succ.end_ea, spoting_new)
-            else:
-                current_addr = idc.next_head(current_addr)
-                if idc.print_insn_mnem(current_addr) in jump_arm:
-                    if jump_arm[idc.print_insn_mnem(current_addr)]:
-                        for succ in cur_block.succs():
-                            if succ.start_ea == idc.next_head(current_addr):
-                                traver_block_arm(succ, succ.start_ea, succ.end_ea, spoting_new)
-                    else:
-                        for succ in cur_block.succs():
-                            if succ.start_ea != idc.next_head(current_addr):
-                                traver_block_arm(succ, succ.start_ea, succ.end_ea, spoting_new)
+                    traver_block_arm(succ, succ.start_ea, succ.end_ea, spoting)
+        else:
+            if (idc.print_insn_mnem(current_addr) in propagation_list_arm) & (idc.print_operand(current_addr, 1) in spoting):
+                spoting.append(idc.print_operand(current_addr, 0))
+            elif (idc.print_insn_mnem(current_addr) in propagation_list_arm) & (idc.print_operand(current_addr, 0) in spoting) & (idc.print_operand(current_addr, 1) not in spoting):
+                print(current_addr)
+                spoting.remove(idc.print_operand(current_addr, 0))
+            elif (idc.print_insn_mnem(current_addr) in jmp_list_arm_0):
+                spoting_new = spoting
+                if idc.print_operand(current_addr, 0) not in spoting:
+                    for succ in cur_block.succs():
+                        traver_block_arm(succ, succ.start_ea, succ.end_ea, spoting_new)
+                else:
+                    current_addr = idc.next_head(current_addr)
+                    while (current_addr < block_end):
+                        if idc.print_insn_mnem(current_addr) in jump_arm:
+                            print(hex(current_addr), idc.print_insn_mnem(current_addr))
+                            flag = 1
+                            if jump_arm[idc.print_insn_mnem(current_addr)]:
+                                for succ in cur_block.succs():
+                                    if succ.start_ea == idc.next_head(current_addr):
+                                        print("succ",succ)
+                                        return succ
+                            elif jump_arm[idc.print_insn_mnem(current_addr)] == 0:
+                                for succ in cur_block.succs():
+                                    if succ.start_ea != idc.next_head(current_addr):
+                                        print("succ",succ)
+                                        return succ
+                        current_addr = idc.next_head(current_addr)
+
+            elif (idc.print_insn_mnem(current_addr) in jmp_list_arm_1):
+                spoting_new = spoting
+                if idc.print_operand(current_addr, 1) not in spoting:
+                    for succ in cur_block.succs():
+                        traver_block_arm(succ, succ.start_ea, succ.end_ea, spoting_new)
+                else:
+                    current_addr = idc.next_head(current_addr)
+                    if idc.print_insn_mnem(current_addr) in jump_arm:
+                        print("addr:",hex(current_addr))
+                        flag = 1
+                        if jump_arm[idc.print_insn_mnem(current_addr)]:
+                            for succ in cur_block.succs():
+                                if succ.start_ea != idc.next_head(current_addr):
+                                    return succ
+                        else:
+                            for succ in cur_block.succs():
+                                if succ.start_ea == idc.next_head(current_addr):
+                                    return succ
         current_addr = idc.next_head(current_addr)
 
+def traver_second_API_arm(cur_block, spoting, block_set):
+    block_start = cur_block.start_ea
+    block_end = cur_block.end_ea
+    current_addr = block_start
+    block_set.append(cur_block.start_ea)
+    while current_addr < block_end:
+        print("spoting", spoting, hex(current_addr))
+        if len(spoting) == 0:
+            if (idc.print_insn_mnem(current_addr) == "BL") and ("SSL_get_verify_result" in idc.print_operand(current_addr, 0)):
+                spoting = ['R0']
+            elif idc.print_insn_mnem(current_addr) in jump_arm.keys():
+                for succ in cur_block.succs():
+                    sys.exit()
+                    if succ.start_ea not in block_set:
+                        return_value = traver_second_API_arm(succ, spoting, block_set)
+                        block_set.remove(succ.start_ea)
+                        if return_value == 1:
+                            print(hex(current_addr))
+                            return 1
+        else:
+            print(hex(current_addr), idc.print_insn_mnem(current_addr) in propagation_list_arm), (idc.print_operand(current_addr, 1) in spoting)
+            print((idc.print_insn_mnem(current_addr) in jmp_list_arm_1))
+            if (idc.print_insn_mnem(current_addr) in propagation_list_arm) & (idc.print_operand(current_addr, 1) in spoting):
+                spoting.append(idc.print_operand(current_addr, 0))
+            elif (idc.print_insn_mnem(current_addr) in propagation_list_arm) & (idc.print_operand(current_addr, 0) in spoting) & (idc.print_operand(current_addr, 1) not in spoting):
+                spoting.remove(idc.print_operand(current_addr, 0))
+            elif (idc.print_insn_mnem(current_addr) in jmp_list_arm_1):
+                spoting_new = spoting
+                if idc.print_operand(current_addr, 1) not in spoting:
+                    for succ in cur_block.succs():
+                        if succ.start_ea not in block_set:
+                            return_value = traver_second_API_arm(succ, spoting_new, block_set)
+                            block_set.remove(succ.start_ea)
+                            if return_value == 1:
+                                print(hex(current_addr))
+                                return 1
+                else:
+                    print("addr:",hex(current_addr))
+                    return 1
+            elif (idc.print_insn_mnem(current_addr) in jmp_list_arm_0):
+                print(idc.print_operand(current_addr, 0) not in spoting)
+                spoting_new = spoting
+                if idc.print_operand(current_addr, 0) not in spoting:
+                    for succ in cur_block.succs():
+                        if succ.start_ea not in block_set:
+                            return_value = traver_second_API_arm(succ, spoting_new, block_set)
+                            block_set.remove(succ.start_ea)
+                            if return_value == 1:
+                                print(hex(current_addr))
+                                return 1
+                else:
+                    print(hex(current_addr))
+                    return 1
+        current_addr = idc.next_head(current_addr)
 
 def traver_block_x86(cur_block, block_start, block_end, spoting):
+    global flag
+    flag = 0
     current_addr = block_start
     if block_start in visited_block:
         return
     visited_block.append(block_start)
     while current_addr < block_end:
-        if idc.print_insn_mnem(current_addr) == "call":
-            call_func_name = idc.print_operand(current_addr, 0)
-            if (call_func_name in SSL_function) & ("SSL_get_verify_result" not in call_func_name):
-                global flag
-                flag = 1
-                return
-        elif (idc.print_insn_mnem(current_addr) in propagation_list) & (idc.print_operand(current_addr, 1) in spoting):
-            spoting.append(idc.print_operand(addr_down, 0))
-        elif (idc.print_insn_mnem(current_addr) in propagation_list) & (idc.print_operand(current_addr, 0) in spoting) & (idc.print_operand(current_addr, 1) not in spoting):
-            spoting.remove(idc.print_operand(addr_down, 0))
-        elif (idc.print_insn_mnem(current_addr) in jmp_list):
-            spoting_new = spoting
-            if idc.print_operand(current_addr, 0) not in spoting:
+        if len(spoting) == 0:
+            if (idc.print_insn_mnem(current_addr) == "call") and ("SSL_get_peer_certificate" in idc.print_operand(current_addr, 0)):
+                spoting = ['rax']
+            elif idc.print_insn_mnem(current_addr) in jump.keys():
                 for succ in cur_block.succs():
-                    traver_block_x86(succ, succ.start_ea, succ.end_ea, spoting_new)
-            else:
-                current_addr = idc.next_head(current_addr)
-                if idc.print_insn_mnem(current_addr) in jump:
-                    if jump[idc.print_insn_mnem(current_addr)]:
-                        for succ in cur_block.succs():
-                            if succ.start_ea == idc.next_head(current_addr):
-                                traver_block_x86(succ, succ.start_ea, succ.end_ea, spoting_new)
-                    else:
-                        for succ in cur_block.succs():
-                            if succ.start_ea != idc.next_head(current_addr):
-                                traver_block_x86(succ, succ.start_ea, succ.end_ea, spoting_new)
+                    traver_block_x86(succ, succ.start_ea, succ.end_ea, spoting)
+        else:
+            if (idc.print_insn_mnem(current_addr) in propagation_list_x86) & (idc.print_operand(current_addr, 1) in spoting):
+                spoting.append(idc.print_operand(current_addr, 0))
+            elif (idc.print_insn_mnem(current_addr) in propagation_list_x86) & (idc.print_operand(current_addr, 0) in spoting) & (idc.print_operand(current_addr, 1) not in spoting):
+                print(current_addr)
+                spoting.remove(idc.print_operand(current_addr, 0))
+            elif (idc.print_insn_mnem(current_addr) in jmp_list):
+                spoting_new = spoting
+                if idc.print_operand(current_addr, 0) not in spoting:
+                    for succ in cur_block.succs():
+                        traver_block_x86(succ, succ.start_ea, succ.end_ea, spoting_new)
+                else:
+                    current_addr = idc.next_head(current_addr)
+                    if idc.print_insn_mnem(current_addr) in jump:
+                        flag = 1
+                        if jump[idc.print_insn_mnem(current_addr)]:
+                            for succ in cur_block.succs():
+                                if succ.start_ea == idc.next_head(current_addr):
+                                    return succ
+                        else:
+                            for succ in cur_block.succs():
+                                if succ.start_ea != idc.next_head(current_addr):
+                                    return succ
+            elif (idc.print_insn_mnem(current_addr) in jmp_list):
+                spoting_new = spoting
+                if idc.print_operand(current_addr, 1) not in spoting:
+                    for succ in cur_block.succs():
+                        traver_block_x86(succ, succ.start_ea, succ.end_ea, spoting_new)
+                else:
+                    current_addr = idc.next_head(current_addr)
+                    if idc.print_insn_mnem(current_addr) in jump:
+                        flag = 1
+                        if jump[idc.print_insn_mnem(current_addr)]:
+                            for succ in cur_block.succs():
+                                if succ.start_ea != idc.next_head(current_addr):
+                                    return succ
+                        else:
+                            for succ in cur_block.succs():
+                                if succ.start_ea == idc.next_head(current_addr):
+                                    return succ
         current_addr = idc.next_head(current_addr)
 
+def traver_second_API_x86(cur_block, spoting, block_set):
+    block_start = cur_block.start_ea
+    block_end = cur_block.end_ea
+    current_addr = block_start
+    block_set.append(cur_block.start_ea)
+    while current_addr < block_end:
+        print("spoting", spoting, hex(current_addr))
+        if len(spoting) == 0:
+            if (idc.print_insn_mnem(current_addr) == "call") and ("SSL_get_verify_result" in idc.print_operand(current_addr, 0)):
+                spoting = ['rax']
+            elif idc.print_insn_mnem(current_addr) in jump.keys():
+                for succ in cur_block.succs():
+                    if succ.start_ea not in block_set:
+                        return_value = traver_second_API_x86(succ, spoting, block_set)
+                        block_set.remove(succ.start_ea)
+                        if return_value == 1:
+                                return 1
+        else:
+            if (idc.print_insn_mnem(current_addr) in propagation_list_x86) & (idc.print_operand(current_addr, 1) in spoting):
+                spoting.append(idc.print_operand(current_addr, 0))
+            elif (idc.print_insn_mnem(current_addr) in propagation_list_x86) & (idc.print_operand(current_addr, 0) in spoting) & (idc.print_operand(current_addr, 1) not in spoting):
+                spoting.remove(idc.print_operand(current_addr, 0))
+            elif (idc.print_insn_mnem(current_addr) in jmp_list):
+                spoting_new = spoting
+                if idc.print_operand(current_addr, 1) not in spoting:
+                    for succ in cur_block.succs():
+                        if succ.start_ea not in block_set:
+                            return_value = traver_second_API_x86(succ, spoting_new, block_set)
+                            block_set.remove(succ.start_ea)
+                            if return_value == 1:
+                                return 1
+                else:
+                    return 1
+            elif (idc.print_insn_mnem(current_addr) in jmp_list_arm_0):
+                print(idc.print_operand(current_addr, 0) not in spoting)
+                spoting_new = spoting
+                if idc.print_operand(current_addr, 0) not in spoting:
+                    for succ in cur_block.succs():
+                        if succ.start_ea not in block_set:
+                            return_value = traver_second_API_x86(succ, spoting_new, block_set)
+                            block_set.remove(succ.start_ea)
+                            if return_value == 1:
+                                return 1
+                else:
+                    return 1
+        current_addr = idc.next_head(current_addr)
 
-if 'SSL_get_verify_result' in function_mark:
+if ('SSL_get_verify_result' in function_mark) and ('SSL_get_peer_certificate' in function_mark):
     if machine != "X86-64":
-        for addr in XrefsTo(idc.get_name_ea_simple('SSL_get_verify_result')):
+        for addr in XrefsTo(idc.get_name_ea_simple('SSL_get_peer_certificate')):
+            print(get_func_name(addr.frm), get_func_name(addr.frm) in function_Mark)
             if get_func_name(addr.frm) in function_Mark:
                 name = addr.frm
                 addr_list.append(name)
@@ -328,11 +495,23 @@ if 'SSL_get_verify_result' in function_mark:
                     name = addr.frm
                 target_addr = name
                 addr_list.sort()
-    else:
         for addr in XrefsTo(idc.get_name_ea_simple('SSL_get_verify_result')):
+            print(get_func_name(addr.frm), get_func_name(addr.frm) in function_Mark)
+            if get_func_name(addr.frm) in function_Mark:
+                name = addr.frm
+                addr_list_verify.append(name)
+                for addr in XrefsTo(name, 0):
+                    name = idc.get_func_attr(addr.frm, FUNCATTR_START)
+                for addr in XrefsTo(name, 0):
+                    name = addr.frm
+                target_addr = name
+                addr_list_verify.sort()
+    else:
+        for addr in XrefsTo(idc.get_name_ea_simple('SSL_get_peer_certificate')):
             for x in XrefsTo(addr.frm, 0):
                 for j in XrefsTo(x.frm, 0):
                     for k in XrefsTo(j.frm, 0):
+                        print(hex(addr.frm),hex(x.frm),hex(j.frm),hex(k.frm))
                         if (j.frm >= text_start) & (j.frm <= text_stop):
                             name = j.frm
                             addr_list.append(name)
@@ -345,25 +524,68 @@ if 'SSL_get_verify_result' in function_mark:
                                     name = m.frm
                                     addr_list.append(name)
             break
+        for addr in XrefsTo(idc.get_name_ea_simple('SSL_get_verify_result')):
+            for x in XrefsTo(addr.frm, 0):
+                for j in XrefsTo(x.frm, 0):
+                    for k in XrefsTo(j.frm, 0):
+                        print(hex(addr.frm),hex(x.frm),hex(j.frm),hex(k.frm))
+                        if (j.frm >= text_start) & (j.frm <= text_stop):
+                            name = j.frm
+                            addr_list_verify.append(name)
+                        elif (k.frm >= text_start) & (k.frm <= text_stop):  # idautils.CodeRef
+                            name = k.frm
+                            addr_list_verify.append(name)
+                        elif (get_func_name(k.frm) == None):
+                            for m in XrefsTo(k.frm):
+                                if get_func_name(m.frm) in function_Mark:
+                                    name = m.frm
+                                    addr_list_verify.append(name)
+            break
 
     for target_addr in addr_list:
         addr_down = idc.next_head(target_addr)
+        # 得到控制流图
         f_blocks = idaapi.FlowChart(idaapi.get_func(target_addr), flags = idaapi.FC_PREDS)
         target_fun = idaapi.get_func(target_addr)
         cur_block = f_blocks[0]
         for block in f_blocks:
+            print(hex(block.start_ea), hex(block.end_ea), hex(target_addr))
             if (block.start_ea <= target_addr) & (block.end_ea >= target_addr):
                 cur_block = block
                 break
-        spoting = ['$v0', 'eax']
+        spoting = []
+        print("traver block", hex(cur_block.start_ea), hex(cur_block.end_ea))
         if machine == "arm":
-            traver_block_arm(cur_block, cur_block.start_ea, cur_block.end_ea, spoting)
+            spoting = []
+            succ = traver_block_arm(cur_block, cur_block.start_ea, cur_block.end_ea, spoting)
         elif machine == "X86-64":
-            traver_block_x86(cur_block, cur_block.start_ea, cur_block.end_ea, spoting)
+            print("X86-64")
+            spoting = []
+            succ = traver_block_x86(cur_block, cur_block.start_ea, cur_block.end_ea, spoting)
+        print("flag",flag, hex(succ.start_ea))
         if flag == 1:
-            print("uncorrect using SSL_get_verify_result")
-        else:
-            print("correct using SSL_get_verify_result")
+            flag = 0
+            spoting = []
+            block_set = []
+            for target_addr_verify in addr_list_verify:
+                print(hex(target_addr_verify))
+                addr_down = idc.next_head(target_addr_verify)
+                f_blocks = idaapi.FlowChart(idaapi.get_func(target_addr_verify), flags = idaapi.FC_PREDS)
+                target_fun = idaapi.get_func(target_addr_verify)
+                cur_block = f_blocks[0]
+                for block in f_blocks:
+                    if (block.start_ea <= target_addr_verify) & (block.end_ea >= target_addr_verify):
+                        cur_block = block
+                        break
+                if machine == "arm":
+                    flag = traver_second_API_arm(cur_block, spoting, block_set)
+                elif machine == "X86-64":
+                    flag = traver_second_API_x86(cur_block, spoting, block_set)
+                print("flag",flag)
+                if flag == 1:
+                    print("correct using SSL_get_peer_certificate and SSL_get_verify_result")
+                else:
+                    print("uncorrect using SSL_get_peer_certificate and SSL_get_verify_result")
 
         end = time.process_time()
         print('Running time: %s Seconds' % (end - start))
@@ -375,4 +597,5 @@ if 'SSL_get_verify_result' in function_mark:
             f.write('\n')
             f.write(str(end1 - start1))
         f.close()
+print(folder)
 output.close()
