@@ -12,7 +12,7 @@ import ida_nalt
 sys.setrecursionlimit(100000)
 start = time.process_time()
 start1 = time.time()
-file_path = 'E:/binary/gnutls/'
+file_path = 'E:/binary/'
 folder = get_root_filename()
 print(folder)
 print(file_path + folder)
@@ -36,8 +36,8 @@ library_function = {
     'fopen': 0,
 }
 
-if not os.path.exists('E:/result/gnutls/' + folder):
-    os.makedirs('E:/result/gnutls/' + folder)
+if not os.path.exists('E:/result/' + folder):
+    os.makedirs('E:/result/' + folder)
 
 SSL_version_function = ['TLSv1_client_method',
     'TLS_client_method',
@@ -198,37 +198,30 @@ for func in idautils.Functions():
 for key in function_mark:
     if key in SSL_function:
         function_mark[key] = 1
-        # print(key)
 
 print('\n******************************************fliter white ')
-# filter the function (whose mark_size=0),keep the function (whose mark_size=0).then
 k = 1
 
 while k:
     counter = len(function_mark)
     for key in function_mark:
         if function_mark[key] == 1:
-            # print 'son---------', key
             for addr in XrefsTo(idc.get_name_ea_simple(key), 0):
                 if get_func_name(addr.frm) in function_mark.keys():
                     if function_mark[get_func_name(addr.frm)] == 0:
-                        # print 'father of ', key, '------', get_func_name(addr.frm)
                         function_mark[get_func_name(addr.frm)] = 1
                         counter = counter - 1
                 if type(get_func_name(addr.frm)) != str:  # code
                     for x in XrefsTo(addr.frm, 0):
                         if type(get_func_name(x.frm)) == str:# idautils.CodeRef
                             if function_mark[get_func_name(x.frm)] == 0:
-                                # print 'father of ', key, '------', get_func_name(x.frm)
                                 function_mark[get_func_name(x.frm)] = 1
                                 counter = counter - 1
-
     if counter == len(function_mark):
         k = 0
 
 function_Mark = []
 for item in function_mark:
-    # print type(item),item,function_mark[item]
     if (function_mark[item] == 1) & (type(item) == str):
         function_Mark.append(item)
 
@@ -242,7 +235,7 @@ if machine == "X86-64":
                 for addr0 in XrefsTo(addr.frm, 0):
                     X86_SSL_func_list.append(get_func_name(addr0.frm))
 
-output = open('E:/result/gnutls/' + folder + '/Report_verify.txt', 'w+')
+output = open('E:/result/' + folder + '/Report_verify.txt', 'w+')
 
 addr_list = []
 addr_list_verify = []
@@ -255,7 +248,6 @@ flag = 0
 
 jmp_list_arm_0 = ["CMP"]
 jmp_list_arm_1 = ["SUBS"]
-# beq : cmp fail jump, bne opposite
 jump_arm = {'BEQ': 0, 'BNE': 1}
 propagation_list_arm = ["MOV", "MOVNE", "STR", "LDR"]
 propagation_list_x86 = ["mov"]
