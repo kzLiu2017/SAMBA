@@ -3,6 +3,8 @@
 ## Demos
 Here is a example of analyzing the SSL/TLS API misuse in the IoT binary applications
 
+### Intra-binary analysis
+
 1. load the target binary with IDA Pro
 
 ![image](https://github.com/kzLiu2017/SAMBA/blob/main/load_binary.jpg)
@@ -14,3 +16,13 @@ Here is a example of analyzing the SSL/TLS API misuse in the IoT binary applicat
 ![image](https://github.com/kzLiu2017/SAMBA/blob/main/select_script.jpg)
 
 3. SSL_get_peer_certificate and SSL_get_verify_result are used, so perform further return value analysis with "2_SSL_API_Misuse_Detection_SSL_version openssl-v2.py"
+
+
+### Inter-binary analysis
+
+1. configure all the python scripts in inter-bianry folder with correct pathes.
+
+2. run the inter-binary analysis
+```shell
+  python3 test_find_cross_file_ssl_bdg_only.py
+```
