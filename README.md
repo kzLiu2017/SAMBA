@@ -18,11 +18,13 @@ Here is a example of analyzing the SSL/TLS API misuse in the IoT binary applicat
 3. SSL_get_peer_certificate and SSL_get_verify_result are used, so perform further return value analysis with "2_SSL_API_Misuse_Detection_SSL_version openssl-v2.py"
 
 
-### Inter-binary analysis
+### Inter-binary analysis (conducted on a macOS laptop)
 
-1. configure all the python scripts in inter-bianry folder with correct pathes.
+1. Uncompressing the firmware
 
-2. run the inter-binary analysis
+2. configure all the python scripts in inter-bianry folder with correct pathes and set the value of file_name in test_find_cross_file_ssl_bdg_only.py to the target binary (i.e., relayd in the example firmware).
+
+3. run the inter-binary analysis
 ```shell
   python3 test_find_cross_file_ssl_bdg_only.py
 ```
